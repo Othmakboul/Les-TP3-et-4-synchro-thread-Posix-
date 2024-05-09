@@ -1,0 +1,67 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+
+#define NUM_CARS 5 // Nombre de voitures
+#define NUM_LAPS 10 // Nombre de tours à effectuer
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+int laps_completed[NUM_CARS] = {0}; 
+
+void *car(void *car_id) {
+    int id = *((int *)car_id);
+    srand(time(NULL) + id);
+
+    printf("Voiture %d en attente sur la ligne de départ...\n", id);
+    sleep(1); 
+    // Début de la course
+    printf("Voiture %d : départ !\n", id);
+
+    // Effectuer les tours de piste
+    for (int lap = 0; lap < NUM_LAPS; ++lap) {
+        usleep(rand() % 1000000); 
+        
+        printf("Voiture %d a terminé le tour %d.\n", id, lap + 1);
+
+        pthread_mutex_lock(&mutex);
+        laps_completed[id]++;
+        pthread_mutex_unlock(&mutex);
+    }
+
+    // Passage de la ligne d'arrivée
+    printf("Voiture %d a franchi la ligne d'arrivée après %d tours.\n", id, NUM_LAPS);
+    return NULL;
+}
+
+int main() {
+    pthread_t cars[NUM_CARS];
+    int car_ids[NUM_CARS];
+
+    // Création des threads représentant les voitures
+    for (int i = 0; i < NUM_CARS; ++i) {
+        car_ids[i] = i;
+        pthread_create(&cars[i], NULL, car, &car_ids[i]);
+    }
+
+    for (int i = 0; i < NUM_CARS; ++i) {
+        pthread_join(cars[i], NULL);
+    }
+
+    // Affichage du classement
+    printf("\nClassement final :\n");
+    for (int i = 0; i < NUM_CARS; ++i) {
+        int max_laps = 0;
+        int winner_id = -1;
+        for (int j = 0; j < NUM_CARS; ++j) {
+            if (laps_completed[j] > max_laps) {
+                max_laps = laps_completed[j];
+                winner_id = j;
+            }
+        }
+        printf("%dème place : Voiture %d avec %d tours.\n", i + 1, winner_id, laps_completed[winner_id]);
+        laps_completed[winner_id] = -1; 
+    }
+
+    return 0;
+}
